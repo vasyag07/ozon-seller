@@ -28,6 +28,9 @@ class ReturnsService extends AbstractService
             $default,
             ArrayHelper::pick($requestData, array_keys($default))
         );
+        if (empty($requestData['filter'])) {
+            unset($requestData['filter']);
+        }
 
         return $this->request('POST', "{$this->path}/list", $requestData);
     }
