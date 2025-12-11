@@ -40,4 +40,16 @@ class FbsService extends AbstractService
 
         return $this->request('POST', '/v5/fbs/posting/product/exemplar/set', $exemplarData);
     }
+
+    /**
+     * @see https://docs.ozon.ru/api/seller/#operation/PostingAPI_FbsPostingProductExemplarStatusV5
+     */
+    public function getExemplarsStatus($postingNumber): array
+    {
+        $body = [
+            'posting_number' => $postingNumber,
+        ];
+
+        return $this->request('POST', '/v5/fbs/posting/product/exemplar/status', $body);
+    }
 }
