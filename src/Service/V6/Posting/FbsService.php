@@ -28,7 +28,7 @@ class FbsService extends AbstractService
      *
      * @param array $exemplarData
      */
-    public function setExemplar($exemplarData): bool
+    public function setExemplar($exemplarData): array
     {
         $exemplarData = ArrayHelper::pick($exemplarData, ['posting_number', 'products']);
 
