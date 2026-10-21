@@ -170,6 +170,52 @@ echo json_encode($orderArr);
 }
 ```
 
+### Список отправлений FBS V4
+
+Для `POST /v4/posting/fbs/list` используйте `Service\V4\Posting\FbsService::list(array $requestData): array`.
+Метод получает одну страницу и возвращает весь ответ с полями `postings`, `cursor` и `has_next`.
+
+```php
+use Gam6itko\OzonSeller\Service\V4\Posting\FbsService;
+
+// $config и PSR-18 $client создаются как в примерах выше.
+$svc = new FbsService($config, $client);
+$request = [
+    'filter' => [
+        'since' => '2026-10-20T00:00:00Z',
+        'to' => '2026-10-21T00:00:00Z',
+        'statuses' => ['awaiting_packaging', 'awaiting_deliver'],
+        // 'warehouse_ids' => [123456789],
+    ],
+    'limit' => 100,
+    'cursor' => '',
+    'sort_dir' => 'ASC',
+    'with' => ['analytics_data' => true, 'barcodes' => true],
+];
+$page = $svc->list($request);
+$postings = $page['postings'];
+
+// Следующая страница — отдельный вызов с тем же фильтром.
+if ($page['has_next']) {
+    if ('' === $page['cursor'] || $request['cursor'] === $page['cursor']) {
+        throw new \RuntimeException('Ozon вернул пустой или повторяющийся курсор');
+    }
+    $request['cursor'] = $page['cursor'];
+    $nextPage = $svc->list($request);
+}
+```
+
+При переходе с V3 замените `dir` на `sort_dir`, а `offset` — на `cursor`.
+Старые параметры `dir`/`offset` не преобразуются и не отправляются. Значения `sort_dir`
+`asc`/`desc` (в том числе из `SortDirection`) преобразуются в `ASC`/`DESC`.
+Поля `filter` и целочисленный `limit` от 1 до 100 обязательны; при неверных значениях
+выбрасывается `LogicException` до HTTP-запроса. Период `since`–`to` по документации — не больше года.
+Новые фильтры включают `statuses`, `warehouse_ids`, `delivery_method_ids`, `provider_ids`;
+вложенные поля `filter` и `with` передаются без фильтрации по правилам V3.
+Также поддерживается верхнеуровневый `translit`. Обход страниц выполняет приложение;
+следует ограничивать число запросов и проверять продвижение курсора.
+Контракт `Service\V3\Posting\FbsService::list()` сохранён, автоматического перехода на V4 нет.
+
 ### Products
 
 #### import
