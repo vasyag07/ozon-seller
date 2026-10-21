@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Gam6itko\OzonSeller\Service\V4\Posting;
 
 use Gam6itko\OzonSeller\Enum\PostingScheme;
+use Gam6itko\OzonSeller\Enum\SortDirection;
 use Gam6itko\OzonSeller\Service\AbstractService;
 use Gam6itko\OzonSeller\Service\HasOrdersInterface;
 use Gam6itko\OzonSeller\Utils\ArrayHelper;
@@ -21,8 +22,20 @@ class FbsService extends AbstractService implements HasOrdersInterface
      *
      * @return array Full response with postings, cursor and has_next
      */
-    public function list(array $requestData): array
+    public function list(array $requestData = []): array
     {
+        $default = [
+            'filter'   => [],
+            'sort_dir' => SortDirection::ASC,
+            'cursor'   => '',
+            'limit'    => 10,
+        ];
+
+        $requestData = array_merge(
+            $default,
+            ArrayHelper::pick($requestData, array_merge(array_keys($default), ['with', 'translit']))
+        );
+
         if (!isset($requestData['limit']) || !is_int($requestData['limit']) || $requestData['limit'] < 1 || $requestData['limit'] > 100) {
             throw new \LogicException('Parameter `limit` must be an integer between 1 and 100');
         }
@@ -30,7 +43,7 @@ class FbsService extends AbstractService implements HasOrdersInterface
             throw new \LogicException('Parameter `filter` must be an array');
         }
 
-        $body = ArrayHelper::pick($requestData, ['filter', 'limit', 'cursor', 'sort_dir', 'with', 'translit']);
+        $body = $requestData;
         if (array_key_exists('sort_dir', $body)) {
             if (!is_string($body['sort_dir']) || !in_array(strtoupper($body['sort_dir']), ['ASC', 'DESC'], true)) {
                 throw new \LogicException('Parameter `sort_dir` must be ASC or DESC');
