@@ -18,6 +18,26 @@ class FbsService extends AbstractService implements HasOrdersInterface, HasUnful
     private $path = '/v3/posting/fbs';
 
     /**
+     * @see https://docs.ozon.ru/api/seller/#operation/PostingFbsPackageLabelCreate
+     *
+     * @return array Full response containing all label tasks
+     */
+    public function packageLabelCreate(array $postingNumbers): array
+    {
+        if (count($postingNumbers) < 1 || count($postingNumbers) > 1000) {
+            throw new \LogicException('Parameter `posting_numbers` must contain between 1 and 1000 posting numbers');
+        }
+        foreach ($postingNumbers as $postingNumber) {
+            if (!is_string($postingNumber) || '' === $postingNumber) {
+                throw new \LogicException('Each posting number must be a non-empty string');
+            }
+        }
+
+        // One request may produce both big_label and small_label tasks; preserve them all.
+        return $this->request('POST', "{$this->path}/package-label/create", ['posting_numbers' => array_values($postingNumbers)], true, false);
+    }
+
+    /**
      * @see https://docs.ozon.ru/api/seller/#operation/PostingAPI_GetFbsPostingList
      */
     public function list(array $requestData = []): array
