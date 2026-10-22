@@ -216,6 +216,76 @@ if ($page['has_next']) {
 следует ограничивать число запросов и проверять продвижение курсора.
 Контракт `Service\V3\Posting\FbsService::list()` сохранён, автоматического перехода на V4 нет.
 
+### Список складов V2
+
+Вместо `Service\V1\WarehouseService::list()` используйте `Service\V2\WarehouseService::list(array $requestData = []): array`.
+Новый метод возвращает страницу `['warehouses' => [...], 'cursor' => '...', 'has_next' => true]`,
+а не прежний массив `result`. По умолчанию отправляются `limit = 10` и `cursor = ''`.
+Можно передать `warehouse_ids` (не более 200 идентификаторов). `limit` — целое число от 1 до 200.
+Данные сверх ограничения не обрезаются: SDK выбрасывает `LogicException`.
+
+```php
+use Gam6itko\OzonSeller\Service\V2\WarehouseService;
+
+$svc = new WarehouseService($config, $client);
+$request = ['limit' => 100, 'cursor' => ''];
+$warehouses = [];
+
+// Приложение управляет обходом страниц; ограничение защищает от бесконечного цикла.
+for ($pageNumber = 0; $pageNumber < 1000; ++$pageNumber) {
+    $page = $svc->list($request);
+    $warehouses = array_merge($warehouses, $page['warehouses']);
+    if (!$page['has_next']) {
+        break;
+    }
+    if ('' === $page['cursor'] || $request['cursor'] === $page['cursor']) {
+        throw new \RuntimeException('Ozon вернул пустой или повторяющийся курсор');
+    }
+    $request['cursor'] = $page['cursor'];
+}
+if ($page['has_next']) {
+    throw new \RuntimeException('Превышено ограничение количества страниц складов');
+}
+```
+
+Старый метод V1 сохранён с пометкой `@deprecated` и не перенаправляется на V2.
+
+### Асинхронные этикетки FBS
+
+Синхронный `Service\V2\Posting\FbsService::packageLabel()` устаревает: по сохранённой
+документации его отключение назначено на 2 ноября 2026 года. Вместо одного запроса PDF
+нужно создать задания, затем получить состояние каждого задания и отдельно скачать готовый файл.
+
+```php
+use Gam6itko\OzonSeller\Service\V3\Posting\FbsService as FbsServiceV3;
+use Gam6itko\OzonSeller\Service\V2\Posting\FbsService as FbsServiceV2;
+
+$creator = new FbsServiceV3($config, $client);
+$reader = new FbsServiceV2($config, $client);
+
+$response = $creator->packageLabelCreate(['example-posting-1', 'example-posting-2']);
+foreach ($response['tasks'] as $task) {
+    // Сохраните task_id и task_type всех заданий, включая big_label и small_label.
+    $state = $reader->packageLabelGet($task['task_id']);
+    // Это JSON: status — объект, error — объект, file_url — ссылка на файл.
+    // Ошибки отдельных отправлений доступны в status.unprinted_postings.
+    if (!empty($state['file_url'])) {
+        $fileUrl = $state['file_url'];
+        // Скачайте файл отдельным HTTP-запросом без Api-Key и Client-Id.
+    }
+    // Если файл ещё не готов, повторите получение состояния позже с тем же task_id.
+    // Обработайте error и задайте предел времени/числа попыток в приложении.
+}
+```
+
+`packageLabelCreate(array $postingNumbers): array` отправляет `posting_numbers` (новое имя во
+множественном числе), принимает от 1 до 1000 непустых строк и возвращает весь ответ с `tasks`.
+`packageLabelGet(int $taskId): array` возвращает весь ответ с `status`, `error`, `file_url`.
+Оба метода выполняют по одному запросу, без ожидания готовности, выбора первого задания или скачивания PDF.
+Ошибки задания при HTTP 200 сохраняются в ответе; HTTP-ошибки обрабатываются общим транспортом SDK.
+Документация рекомендует создавать задания через 45–60 секунд после сборки заказа; SDK не добавляет задержку.
+Старый `packageLabel()` сохранён с прежним возвращаемым типом `string` и пометкой `@deprecated`.
+
 ### Products
 
 #### import
