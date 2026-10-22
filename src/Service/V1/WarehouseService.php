@@ -10,6 +10,9 @@ class WarehouseService extends AbstractService
 {
     private $path = '/v1/warehouse';
 
+    /**
+     * @deprecated Use V2\WarehouseService::list(); its response includes warehouses and pagination.
+     */
     public function list(): array
     {
         return $this->request('POST', "{$this->path}/list");

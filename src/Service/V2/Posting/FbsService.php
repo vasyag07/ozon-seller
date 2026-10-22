@@ -113,6 +113,8 @@ class FbsService extends AbstractService implements HasOrdersInterface, HasUnful
      * @see https://cb-api.ozonru.me/apiref/en/#t-fbs_package_label
      *
      * @param array|string $postingNumber
+     *
+     * @deprecated Use V3\Posting\FbsService::packageLabelCreate() and packageLabelGet(); the new methods return JSON, not PDF.
      */
     public function packageLabel($postingNumber): string
     {
@@ -121,6 +123,17 @@ class FbsService extends AbstractService implements HasOrdersInterface, HasUnful
         }
 
         return $this->request('POST', "{$this->path}/package-label", ['posting_number' => $postingNumber], false);
+    }
+
+    /**
+     * @see https://docs.ozon.ru/api/seller/#operation/PostingFbsPackageLabelGet
+     *
+     * @return array Full task response with status, error and file_url
+     */
+    public function packageLabelGet(int $taskId): array
+    {
+        // Return JSON only: downloading file_url must not forward the seller API credentials.
+        return $this->request('POST', "{$this->path}/package-label/get", ['task_id' => $taskId], true, false);
     }
 
     /**
